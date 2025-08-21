@@ -1,5 +1,7 @@
 # Local Minimax Note
 
+Just some ideas I've been messing around with
+
 This repo is just a rough write-up (in LaTeX) of an idea for a first-order method  
 that actually converges to **local minimax optima** in nonconvex–nonconcave games.  
 
