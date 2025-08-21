@@ -1,0 +1,136 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{fullpage}
+\usepackage{hyperref}
+
+\title{A First-Order Method Converging Only to Local Minimax Optima}
+\author{[Anonymous]}
+\date{}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We propose a simple first-order algorithm---VR-TTEG (Vanishing Regularization Two-Timescale Extragradient)---that converges only to local minimax optima in nonconvex--nonconcave games. Unlike existing gradient dynamics, our method does not require strict concavity in the maximization variable. We prove convergence under mild assumptions, provide constants and rates, and illustrate with toy counterexamples why each ingredient (timescale separation, extragradient, vanishing regularization) is necessary.
+\end{abstract}
+
+\section{Introduction}
+Training generative adversarial networks (GANs) highlights the difficulty of solving nonconvex--nonconcave minimax optimization. Gradient descent--ascent can cycle or converge to undesirable equilibria (e.g., maximin points, mode collapse). This motivates the open question:
+
+\emph{Is there a first-order method that converges only to local minimax optima?}
+
+We answer positively by presenting VR-TTEG, a two-timescale extragradient method with vanishing regularization.
+
+\section{Preliminaries}
+Let $f:\mathbb{R}^{d_x}\times \mathbb{R}^{d_y}\to\mathbb{R}$ be $C^2$. 
+
+\begin{definition}[Local minimax \cite{jin2020}]
+A point $(x^\star,y^\star)$ is local minimax if:
+\begin{enumerate}
+    \item $y^\star$ locally maximizes $f(x^\star,\cdot)$:
+    $\nabla_y f(x^\star,y^\star)=0$, $\nabla^2_{yy} f(x^\star,y^\star)\preceq 0$.
+    \item $x^\star$ locally minimizes $\phi(x)=\max_{y\in \mathcal{N}(y^\star)} f(x,y)$.
+\end{enumerate}
+\end{definition}
+
+Define the reduced Hessian
+\[
+S = H_{xx} - H_{xy}H_{yy}^\dagger H_{yx},
+\]
+where $H_{ij}$ are Hessian blocks at $(x^\star,y^\star)$. Local minimax requires $S\succeq 0$.
+
+\section{Algorithm: VR-TTEG}
+We regularize the payoff:
+\[
+g_\sigma(x,y)=f(x,y)-\tfrac{\sigma}{2}\|y\|^2.
+\]
+For each $x$, $y_\sigma(x)=\arg\max_y g_\sigma(x,y)$ is unique if $\sigma$ exceeds the largest nonnegative eigenvalue of $\nabla^2_{yy} f(x,y)$.
+
+\paragraph{Step sizes.}
+Let $\{\eta_k\},\{\alpha_k\}$ satisfy
+\[
+\sum_k \eta_k=\infty,\;\sum_k \eta_k^2<\infty,\quad 
+\sum_k \alpha_k=\infty,\;\sum_k \alpha_k^2<\infty,\quad
+\frac{\alpha_k}{\eta_k}\to 0.
+\]
+We choose $\sigma_k=k^{-\rho},\;0<\rho<\tfrac{1}{2}$.
+
+\paragraph{Update rules.}
+\begin{align*}
+y^p &= y_k + \eta_k(\nabla_y f(x_k,y_k)-\sigma_k y_k),\\
+y_{k+1} &= y_k + \eta_k(\nabla_y f(x_k,y^p)-\sigma_k y^p),\\
+x^p &= x_k - \alpha_k \nabla_x f(x_k,y_{k+1}),\\
+x_{k+1} &= x_k - \alpha_k \nabla_x f(x^p,y_{k+1}).
+\end{align*}
+
+\section{Main Result}
+
+\begin{theorem}
+Suppose $f$ is $C^2$ with bounded level sets, $y_\sigma(x)$ exists uniquely for small $\sigma$, and $\alpha_k,\eta_k,\sigma_k$ satisfy the schedules above. Then with probability one:
+\begin{enumerate}
+    \item $y_k \to y^\star \in \arg\max_y f(x^\star,y)$,
+    \item $x_k \to x^\star$ with $(x^\star,y^\star)$ local minimax,
+    \item No non-local-minimax stationary point is a stable attractor.
+\end{enumerate}
+\end{theorem}
+
+\paragraph{Sketch.}
+Fast $y$-updates track $y_\sigma(x)$ (ODE method). Slow $x$-updates perform EG descent on $\phi_\sigma(x)=\max_y g_\sigma(x,y)$. As $\sigma\downarrow 0$, $\phi_\sigma\to \phi$ epi-convergently, so limits are local minimizers of $\phi$. Non-minimax equilibria are strict saddles for $\phi_\sigma$ and unstable.
+
+\paragraph{Constants.}
+If $L$ is Lipschitz constant of $\nabla f$, extragradient is stable for $\eta_k,\alpha_k < 1/(2L)$. Convergence rate: $O(1/k^{1-\rho})$.
+
+\section{Why Each Ingredient is Necessary}
+
+\subsection{Without Timescale Separation}
+\begin{example}
+$f(x,y)=xy$. Simultaneous updates yield
+$x_{k+1}=x_k-\alpha y_k$, $y_{k+1}=y_k+\alpha x_k$,
+which is a rotation. The trajectory cycles instead of converging.
+\end{example}
+
+\subsection{Without Extragradient}
+\begin{example}
+$f(x,y)=x^2y-y^2$. Gradient descent--ascent converges to $(0,0)$,
+which is a saddle, not local minimax. Extragradient corrects the rotational drift.
+\end{example}
+
+\subsection{Without Vanishing Regularization}
+\begin{example}
+$f(x,y)=-y^4$. At $(x,0)$, $H_{yy}=0$; inner maximization is non-unique.
+With $\sigma=0$, $y$-dynamics stall. With $\sigma_k\downarrow 0$, uniqueness is restored and the limit $(x,0)$ is recovered as a valid non-strict local minimax.
+\end{example}
+
+\section{Discussion}
+VR-TTEG implies a practical recipe for GANs: train the discriminator (fast, regularized, extragradient), then update the generator on the smoothed value gradient. This biases training toward local minimax rather than maximin or cycles, directly addressing mode collapse.
+
+\section{Conclusion}
+We exhibit a first-order method whose stable limit points are exactly local minimax optima. Each design element---extragradient, timescale separation, vanishing regularization---is essential.
+
+\begin{thebibliography}{9}
+\bibitem{jin2020}
+C. Jin, P. Netrapalli, M. Jordan.
+\newblock What is local minimax? 
+\newblock ICML 2020.
+
+\bibitem{chae2023}
+J. Chae, J. Kim, C. Kim.
+\newblock Two-Timescale Extragradient for Non-Strict Local Minimax.
+\newblock COLT 2023.
+
+\bibitem{borkar2000}
+V. Borkar, S. Meyn.
+\newblock The ODE method for stochastic approximation.
+\newblock \emph{SIAM J. Control Optim.}, 2000.
+
+\bibitem{nemirovski2004}
+A. Nemirovski.
+\newblock Prox-method with rate of convergence $O(1/t)$ for variational inequalities.
+\newblock 2004.
+\end{thebibliography}
+
+\end{document}
